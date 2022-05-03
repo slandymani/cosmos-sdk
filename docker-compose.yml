@@ -1,98 +1,53 @@
-version: "3"
+version: "3.5"
 
 services:
-  simdnode0:
-    container_name: simdnode0
-    image: "cosmossdk/simd"
-    environment:
-      - DEBUG=1
-      - ID=0
-      - LOG=${LOG:-simd.log}
-    cap_add:
-      - SYS_PTRACE
-    security_opt:
-      - seccomp:unconfined
+  validator:
+    image: odinprotocol/core:v0.4.0
+    container_name: validator
+    restart: always
+    deploy:
+      resources:
+        limits:
+          memory: 1800m
+        reservations:
+          memory: 1000m
     ports:
-      - "26656-26657:26656-26657"
-      - "1317:1317"
-      - "9090:9090"
-      - "2345:2345"
-    volumes:
-      - ./.testnets:/data:Z
+      - 26658:26658
+      - 26657:26657
+      - 26656:26656
+      - 9090:9090
+      - 1317:1317
+    command: cosmovisor run start
+    environment:
+      - DAEMON_NAME=odind
+      - DAEMON_HOME=/root/.odin
     networks:
-      localnet:
-        ipv4_address: 192.168.10.2
+      default:
+        ipv4_address: 172.18.0.2
+    volumes:
+      - vol:/root/.odin
+      - ./node_key.json:/root/.odin/config/node_key.json
+      - ./priv_validator_key.json:/root/.odin/config/priv_validator_key.json
 
-  simdnode1:
-    container_name: simdnode1
-    image: "cosmossdk/simd"
-    environment:
-      - DEBUG=0
-      - ID=1
-      - LOG=${LOG:-simd.log}
-    cap_add:
-      - SYS_PTRACE
-    security_opt:
-      - seccomp:unconfined
-    ports:
-      - "26666-26667:26656-26657"
-      - "1318:1317"
-      - "9091:9090"
-      - "2346:2345"
-    volumes:
-      - ./.testnets:/data:Z
+  yoda:
+    image: odinprotocol/core:v0.4.0
+    container_name: yoda
+    depends_on:
+      - validator
+    restart: always
     networks:
-      localnet:
-        ipv4_address: 192.168.10.3
+      default:
+        ipv4_address: 172.18.0.3
+    command: sh -c "yoda run --log-level debug --node tcp://172.18.0.2:26657"
+    volumes:
+      - ../.yoda:/root/.yoda
 
-  simdnode2:
-    container_name: simdnode2
-    image: "cosmossdk/simd"
-    environment:
-      - DEBUG=0
-      - ID=2
-      - LOG=${LOG:-simd.log}
-    cap_add:
-      - SYS_PTRACE
-    security_opt:
-      - seccomp:unconfined
-    ports:
-      - "26676-26677:26656-26657"
-      - "1319:1317"
-      - "9092:9090"
-      - "2347:2345"
-    volumes:
-      - ./.testnets:/data:Z
-    networks:
-      localnet:
-        ipv4_address: 192.168.10.4
-
-  simdnode3:
-    container_name: simdnode3
-    image: "cosmossdk/simd"
-    environment:
-      - DEBUG=0
-      - ID=3
-      - LOG=${LOG:-simd.log}
-    cap_add:
-      - SYS_PTRACE
-    security_opt:
-      - seccomp:unconfined
-    ports:
-      - "26686-26687:26656-26657"
-      - "1320:1317"
-      - "9093:9090"
-      - "2348:2345"
-    volumes:
-      - ./.testnets:/data:Z
-    networks:
-      localnet:
-        ipv4_address: 192.168.10.5
+volumes:
+  vol:
 
 networks:
-  localnet:
-    driver: bridge
+  default:
     ipam:
       driver: default
       config:
-        - subnet: 192.168.10.0/25
+        - subnet: "172.18.0.0/16"
