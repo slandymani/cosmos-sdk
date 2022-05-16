@@ -1,8 +1,4 @@
-FROM golang:1.18-alpine AS build-env
-
-# Install minimum necessary dependencies
-ENV PACKAGES curl make git libc-dev bash gcc linux-headers eudev-dev python3
-RUN apk add --no-cache $PACKAGES
+FROM golang:1.18-buster AS build-env
 
 # Set working directory for the build
 WORKDIR /go/src/github.com/cosmos/cosmos-sdk
@@ -13,16 +9,13 @@ COPY . .
 # install simapp, remove packages
 RUN make cosmovisor
 
-
-# Final image
-FROM alpine:edge
-
 # Install ca-certificates
-RUN apk add --update ca-certificates
-WORKDIR /root
+RUN apt-get update && apt-get install -y ca-certificates && update-ca-certificates
 
 # Copy over binaries from the build-env
-COPY --from=build-env /go/src/github.com/cosmos/cosmos-sdk/cosmovisor/cosmovisor /usr/bin/cosmovisor
+COPY cosmovisor/cosmovisor /usr/bin/cosmovisor
+
+WORKDIR /root
 
 EXPOSE 26656 26657 1317 9090
 
